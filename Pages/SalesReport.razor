@@ -318,6 +318,15 @@
 </div>
 
 @code {
+    [Parameter]
+    public int? Year { get; set; }
+
+    [Parameter]
+    public int? Month { get; set; }
+
+    [Parameter]
+    public int? Day { get; set; }
+
     private DailySalesReportViewModel? _report;
     private bool _isLoading = false;
     private int _selectedYear = 1405;
@@ -326,6 +335,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // اگر از URL پارامتر‌ها گذرانده شدند، از آنها استفاده کن
+        if (Year.HasValue && Month.HasValue && Day.HasValue)
+        {
+            _selectedYear = Year.Value;
+            _selectedMonth = Month.Value;
+            _selectedDay = Day.Value;
+        }
+
         await LoadReportAsync();
     }
 
