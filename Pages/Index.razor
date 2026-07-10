@@ -1,0 +1,321 @@
+@page "/"
+@using MoaediPharamcy.Repositories
+@using MoaediPharamcy.ViewModels
+@inject IDailySalesRepository SalesRepository
+@inject IJSRuntime JS
+
+<PageTitle>داشبورد فروش</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-8">
+    <!-- سرتیتر -->
+    <MudStack Row="true" Spacing="2" Class="mb-6">
+        <MudText Typo="Typo.h3" Class="text-primary font-weight-bold">📊 داشبورد فروش روزانه</MudText>
+        <MudSpacer></MudSpacer>
+        <MudDatePicker Label="انتخاب تاریخ" @bind-Date="SelectedDate" />
+    </MudStack>
+
+    @if (IsLoading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (CurrentReport != null)
+    {
+        <!-- کارت‌های خلاصه فروش -->
+        <MudGrid Spacing="2" Class="mb-6">
+            <!-- کل فروش -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Class="text-success mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">کل فروش</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold text-success">
+                                @CurrentReport.TotalDailySales.ToString("N0")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="text-muted">ریال</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- فروش بیمه‌ای -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Size="Size.Large" Class="text-info mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">فروش بیمه‌ای</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold text-info">
+                                @CurrentReport.TotalInsuranceSales.ToString("N0")
+                            </MudText>
+                            <MudText Typo="Typo.caption">@CurrentReport.InsuranceSalesPercentage.ToString("F1")%</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- مبلغ قابل پرداخت -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Large" Class="text-warning mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">قابل پرداخت</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold text-warning">
+                                @CurrentReport.TotalPayablePrice.ToString("N0")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="text-muted">ریال</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- مبلغ معوق -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Large" Class="@(CurrentReport.OutstandingAmount > 0 ? "text-danger" : "text-success") mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">معوق</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold @(CurrentReport.OutstandingAmount > 0 ? "text-danger" : "text-success")">
+                                @CurrentReport.OutstandingAmount.ToString("N0")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="text-muted">ریال</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <!-- چارت‌ها -->
+        <MudGrid Spacing="2" Class="mb-6">
+            <!-- چارت دونات - نسبت فروش -->
+            <MudItem xs="12" md="6">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">توزیع فروش</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div class="d-flex flex-column align-center">
+                            <canvas id="salesChart" style="max-width: 300px;"></canvas>
+                            <MudDivider Class="my-4" />
+                            <MudStack Spacing="1" Style="width: 100%;">
+                                <div class="d-flex justify-space-between">
+                                    <MudText>بیمه‌ای:</MudText>
+                                    <MudText Class="font-weight-bold">@CurrentReport.InsuranceSalesPercentage.ToString("F1")%</MudText>
+                                </div>
+                                <div class="d-flex justify-space-between">
+                                    <MudText>غیر بیمه‌ای:</MudText>
+                                    <MudText Class="font-weight-bold">@CurrentReport.NonInsuranceSalesPercentage.ToString("F1")%</MudText>
+                                </div>
+                            </MudStack>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- چارت ستونی - معیارهای عملکرد -->
+            <MudItem xs="12" md="6">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">معیارهای عملکرد</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div class="d-flex flex-column align-center">
+                            <canvas id="performanceChart" style="max-width: 100%; height: 250px;"></canvas>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <!-- جدول جزئیات -->
+        <MudCard Class="mud-elevation-8">
+            <MudCardHeader>
+                <MudText Typo="Typo.h6">جزئیات فروش</MudText>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudSimpleTable Bordered="true" Dense="true" Hover="true" FixedHeader="true" Style="max-height: 400px; overflow-y: auto;">
+                    <thead>
+                        <tr>
+                            <th>شرح</th>
+                            <th class="text-right">مبلغ (ریال)</th>
+                            <th class="text-right">درصد</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>کل فروش</td>
+                            <td class="text-right font-weight-bold text-success">@CurrentReport.TotalDailySales.ToString("N0")</td>
+                            <td class="text-right">100%</td>
+                        </tr>
+                        <tr>
+                            <td>فروش بیمه‌ای</td>
+                            <td class="text-right">@CurrentReport.TotalInsuranceSales.ToString("N0")</td>
+                            <td class="text-right">@CurrentReport.InsuranceSalesPercentage.ToString("F1")%</td>
+                        </tr>
+                        <tr>
+                            <td>فروش غیر بیمه‌ای</td>
+                            <td class="text-right">@CurrentReport.TotalNonInsuranceSales.ToString("N0")</td>
+                            <td class="text-right">@CurrentReport.NonInsuranceSalesPercentage.ToString("F1")%</td>
+                        </tr>
+                        <tr>
+                            <td>سهم سازمان</td>
+                            <td class="text-right font-weight-bold text-info">@CurrentReport.TotalOrganPart.ToString("N0")</td>
+                            <td class="text-right">@((CurrentReport.TotalDailySales > 0 ? (CurrentReport.TotalOrganPart / CurrentReport.TotalDailySales * 100) : 0).ToString("F1"))%</td>
+                        </tr>
+                        <tr>
+                            <td>سهم بیمار</td>
+                            <td class="text-right">@CurrentReport.TotalSickPart.ToString("N0")</td>
+                            <td class="text-right">@((CurrentReport.TotalDailySales > 0 ? (CurrentReport.TotalSickPart / CurrentReport.TotalDailySales * 100) : 0).ToString("F1"))%</td>
+                        </tr>
+                        <tr Class="mud-table-row mud-elevation-1">
+                            <td>مبلغ قابل پرداخت</td>
+                            <td class="text-right font-weight-bold text-warning">@CurrentReport.TotalPayablePrice.ToString("N0")</td>
+                            <td class="text-right">-</td>
+                        </tr>
+                        <tr Class="mud-table-row mud-elevation-1">
+                            <td>مبلغ پرداخت‌شده</td>
+                            <td class="text-right font-weight-bold text-success">@CurrentReport.TotalPaidPrice.ToString("N0")</td>
+                            <td class="text-right">@CurrentReport.CollectionRatio.ToString("F1")%</td>
+                        </tr>
+                        <tr Class="mud-table-row mud-elevation-1">
+                            <td>مبلغ معوق</td>
+                            <td class="text-right font-weight-bold @(CurrentReport.OutstandingAmount > 0 ? "text-danger" : "text-success")">@CurrentReport.OutstandingAmount.ToString("N0")</td>
+                            <td class="text-right">@((CurrentReport.TotalPayablePrice > 0 ? (CurrentReport.OutstandingAmount / CurrentReport.TotalPayablePrice * 100) : 0).ToString("F1"))%</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudCardContent>
+        </MudCard>
+
+        <!-- آمار اضافی -->
+        <MudGrid Spacing="2" Class="mt-6">
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Large" Class="text-secondary mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">تعداد فاکتورها</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold">@CurrentReport.TotalInvoices</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalPharmacy" Size="Size.Large" Class="text-secondary mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">تعداد اقلام</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold">@CurrentReport.TotalItems</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Large" Class="text-secondary mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">میانگین فروش/فاکتور</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold">@CurrentReport.AverageSalesPerInvoice.ToString("N0")</MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardContent>
+                        <div class="text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Class="text-secondary mb-2" />
+                            <MudText Typo="Typo.caption" Class="text-muted">نسبت جمع‌آوری</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold @(CurrentReport.CollectionRatio >= 80 ? "text-success" : CurrentReport.CollectionRatio >= 50 ? "text-warning" : "text-danger")">
+                                @CurrentReport.CollectionRatio.ToString("F1")%
+                            </MudText>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+    else if (!IsLoading)
+    {
+        <MudAlert Severity="Severity.Warning">هیچ داده‌ای برای روز انتخاب‌شده پیدا نشد.</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private DailySalesReportViewModel CurrentReport;
+    private DateTime? SelectedDate = DateTime.Now;
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDailySalesReport();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedDate.HasValue)
+        {
+            await LoadDailySalesReport();
+        }
+    }
+
+    private async Task LoadDailySalesReport()
+    {
+        try
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            if (SelectedDate.HasValue)
+            {
+                // تبدیل تاریخ میلادی به شمسی
+                var shamsiDate = ConvertToShamsi(SelectedDate.Value);
+                CurrentReport = await SalesRepository.GetDailySalesReportAsync(shamsiDate.Year, shamsiDate.Month, shamsiDate.Day);
+
+                // رسم چارت‌ها
+                await Task.Delay(100); // برای اطمینان از رندر شدن canvas
+                await RenderCharts();
+            }
+        }
+        catch (Exception ex)
+        {
+            // خطا را لاگ کنید
+            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private (int Year, int Month, int Day) ConvertToShamsi(DateTime date)
+    {
+        // تبدیل ساده - به جای این، می‌توانید از کتابخانه‌های مخصوص استفاده کنید
+        // این یک نمونه ساده است
+        return (1405, 3, 27); // نمونه
+    }
+
+    private async Task RenderCharts()
+    {
+        if (CurrentReport == null) return;
+
+        var chartModule = await JS.InvokeAsync<IJSObjectReference>("import", "./dashboard.js");
+
+        // چارت دونات
+        await chartModule.InvokeVoidAsync("renderDonutChart", 
+            CurrentReport.TotalInsuranceSales, 
+            CurrentReport.TotalNonInsuranceSales);
+
+        // چارت ستونی
+        await chartModule.InvokeVoidAsync("renderBarChart",
+            new[] { CurrentReport.TotalOrganPart, CurrentReport.TotalSickPart, CurrentReport.TotalPharmacyServiceFee },
+            new[] { "سهم سازمان", "سهم بیمار", "تعرفه خدمات" });
+    }
+}
