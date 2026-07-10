@@ -1,8 +1,8 @@
 @page "/"
 @using MoaediPharamcy.Repositories
 @using MoaediPharamcy.ViewModels
+@using MudBlazor.Charts
 @inject IDailySalesRepository SalesRepository
-@inject IJSRuntime JS
 
 <PageTitle>داشبورد فروش</PageTitle>
 
@@ -93,44 +93,56 @@
             <MudItem xs="12" md="6">
                 <MudCard Class="mud-elevation-8">
                     <MudCardHeader>
-                        <MudText Typo="Typo.h6">توزیع فروش</MudText>
+                        <MudText Typo="Typo.h6">توزیع فروش (بیمه‌ای vs غیر بیمه‌ای)</MudText>
                     </MudCardHeader>
                     <MudCardContent>
-                        <div class="d-flex flex-column align-center">
-                            <canvas id="salesChart" style="max-width: 300px;"></canvas>
-                            <MudDivider Class="my-4" />
-                            <MudStack Spacing="1" Style="width: 100%;">
-                                <div class="d-flex justify-space-between">
-                                    <MudText>بیمه‌ای:</MudText>
-                                    <MudText Class="font-weight-bold">@CurrentReport.InsuranceSalesPercentage.ToString("F1")%</MudText>
-                                </div>
-                                <div class="d-flex justify-space-between">
-                                    <MudText>غیر بیمه‌ای:</MudText>
-                                    <MudText Class="font-weight-bold">@CurrentReport.NonInsuranceSalesPercentage.ToString("F1")%</MudText>
-                                </div>
-                            </MudStack>
-                        </div>
+                        <MudChart ChartType="ChartType.Donut" ChartSeries="@Series1" @bind-SelectedIndex="SelectedIndex1" ChartOptions="@ChartOptions" />
                     </MudCardContent>
                 </MudCard>
             </MudItem>
 
-            <!-- چارت ستونی - معیارهای عملکرد -->
+            <!-- چارت ستونی - اجزای فروش -->
             <MudItem xs="12" md="6">
                 <MudCard Class="mud-elevation-8">
                     <MudCardHeader>
-                        <MudText Typo="Typo.h6">معیارهای عملکرد</MudText>
+                        <MudText Typo="Typo.h6">اجزای فروش</MudText>
                     </MudCardHeader>
                     <MudCardContent>
-                        <div class="d-flex flex-column align-center">
-                            <canvas id="performanceChart" style="max-width: 100%; height: 250px;"></canvas>
-                        </div>
+                        <MudChart ChartType="ChartType.Bar" ChartSeries="@Series2" @bind-SelectedIndex="SelectedIndex2" ChartOptions="@ChartOptions" XAxisLabels="@XAxisLabels" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <!-- چارت‌های اضافی -->
+        <MudGrid Spacing="2" Class="mb-6">
+            <!-- چارت ستونی - سهم‌ها -->
+            <MudItem xs="12" md="6">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">تقسیم سهم‌ها</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudChart ChartType="ChartType.Bar" ChartSeries="@Series3" @bind-SelectedIndex="SelectedIndex3" ChartOptions="@ChartOptions" XAxisLabels="@XAxisLabels2" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- چارت خطی - مقایسه مالی -->
+            <MudItem xs="12" md="6">
+                <MudCard Class="mud-elevation-8">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">مقایسه قابل پرداخت و پرداخت‌شده</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudChart ChartType="ChartType.Line" ChartSeries="@Series4" @bind-SelectedIndex="SelectedIndex4" ChartOptions="@ChartOptions" XAxisLabels="@XAxisLabels3" />
                     </MudCardContent>
                 </MudCard>
             </MudItem>
         </MudGrid>
 
         <!-- جدول جزئیات -->
-        <MudCard Class="mud-elevation-8">
+        <MudCard Class="mud-elevation-8 mb-6">
             <MudCardHeader>
                 <MudText Typo="Typo.h6">جزئیات فروش</MudText>
             </MudCardHeader>
@@ -169,6 +181,16 @@
                             <td class="text-right">@CurrentReport.TotalSickPart.ToString("N0")</td>
                             <td class="text-right">@((CurrentReport.TotalDailySales > 0 ? (CurrentReport.TotalSickPart / CurrentReport.TotalDailySales * 100) : 0).ToString("F1"))%</td>
                         </tr>
+                        <tr>
+                            <td>سهم ارز</td>
+                            <td class="text-right">@CurrentReport.TotalExchangePrice.ToString("N0")</td>
+                            <td class="text-right">-</td>
+                        </tr>
+                        <tr>
+                            <td>تعرفه خدمات دارویی</td>
+                            <td class="text-right">@CurrentReport.TotalPharmacyServiceFee.ToString("N0")</td>
+                            <td class="text-right">-</td>
+                        </tr>
                         <tr Class="mud-table-row mud-elevation-1">
                             <td>مبلغ قابل پرداخت</td>
                             <td class="text-right font-weight-bold text-warning">@CurrentReport.TotalPayablePrice.ToString("N0")</td>
@@ -190,7 +212,7 @@
         </MudCard>
 
         <!-- آمار اضافی -->
-        <MudGrid Spacing="2" Class="mt-6">
+        <MudGrid Spacing="2">
             <MudItem xs="12" sm="6" md="3">
                 <MudCard Class="mud-elevation-8">
                     <MudCardContent>
@@ -252,18 +274,30 @@
     private DailySalesReportViewModel CurrentReport;
     private DateTime? SelectedDate = DateTime.Now;
     private bool IsLoading = true;
+    private int SelectedIndex1 = -1;
+    private int SelectedIndex2 = -1;
+    private int SelectedIndex3 = -1;
+    private int SelectedIndex4 = -1;
+
+    private List<ChartSeries> Series1 = new();
+    private List<ChartSeries> Series2 = new();
+    private List<ChartSeries> Series3 = new();
+    private List<ChartSeries> Series4 = new();
+
+    private List<string> XAxisLabels = new();
+    private List<string> XAxisLabels2 = new();
+    private List<string> XAxisLabels3 = new();
+
+    private ChartOptions ChartOptions = new()
+    {
+        ChartPalette = new[] { "#4CAF50", "#2196F3", "#FF9800", "#F44336", "#9C27B0", "#00BCD4" },
+        DisableLegend = false,
+        LineStrokeWidth = 2,
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await LoadDailySalesReport();
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (SelectedDate.HasValue)
-        {
-            await LoadDailySalesReport();
-        }
     }
 
     private async Task LoadDailySalesReport()
@@ -279,14 +313,14 @@
                 var shamsiDate = ConvertToShamsi(SelectedDate.Value);
                 CurrentReport = await SalesRepository.GetDailySalesReportAsync(shamsiDate.Year, shamsiDate.Month, shamsiDate.Day);
 
-                // رسم چارت‌ها
-                await Task.Delay(100); // برای اطمینان از رندر شدن canvas
-                await RenderCharts();
+                if (CurrentReport != null)
+                {
+                    UpdateCharts();
+                }
             }
         }
         catch (Exception ex)
         {
-            // خطا را لاگ کنید
             System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
         }
         finally
@@ -295,27 +329,58 @@
         }
     }
 
+    private void UpdateCharts()
+    {
+        if (CurrentReport == null) return;
+
+        // چارت 1: دونات - بیمه‌ای vs غیر بیمه‌ای
+        Series1 = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "بیمه‌ای", Data = new double[] { (double)CurrentReport.TotalInsuranceSales } },
+            new ChartSeries { Name = "غیر بیمه‌ای", Data = new double[] { (double)CurrentReport.TotalNonInsuranceSales } }
+        };
+
+        // چارت 2: ستونی - اجزای فروش
+        Series2 = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "بیمه‌ای", Data = new double[] { (double)CurrentReport.TotalInsuranceSales } },
+            new ChartSeries { Name = "غیر بیمه‌ای", Data = new double[] { (double)CurrentReport.TotalNonInsuranceSales } },
+            new ChartSeries { Name = "سهم سازمان", Data = new double[] { (double)CurrentReport.TotalOrganPart } }
+        };
+        XAxisLabels = new List<string> { "مقادیر" };
+
+        // چارت 3: ستونی - سهم‌ها
+        Series3 = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "سهم سازمان", Data = new double[] { (double)CurrentReport.TotalOrganPart } },
+            new ChartSeries { Name = "سهم بیمار", Data = new double[] { (double)CurrentReport.TotalSickPart } },
+            new ChartSeries { Name = "سهم ارز", Data = new double[] { (double)CurrentReport.TotalExchangePrice } },
+            new ChartSeries { Name = "تعرفه خدمات", Data = new double[] { (double)CurrentReport.TotalPharmacyServiceFee } }
+        };
+        XAxisLabels2 = new List<string> { "مقادیر" };
+
+        // چارت 4: خطی - مقایسه مالی
+        Series4 = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "قابل پرداخت", Data = new double[] { (double)CurrentReport.TotalPayablePrice } },
+            new ChartSeries { Name = "پرداخت‌شده", Data = new double[] { (double)CurrentReport.TotalPaidPrice } },
+            new ChartSeries { Name = "معوق", Data = new double[] { (double)CurrentReport.OutstandingAmount } }
+        };
+        XAxisLabels3 = new List<string> { "وضعیت" };
+
+        StateHasChanged();
+    }
+
+    private async Task SelectedDateChanged(DateTime? newDate)
+    {
+        SelectedDate = newDate;
+        await LoadDailySalesReport();
+    }
+
     private (int Year, int Month, int Day) ConvertToShamsi(DateTime date)
     {
         // تبدیل ساده - به جای این، می‌توانید از کتابخانه‌های مخصوص استفاده کنید
         // این یک نمونه ساده است
         return (1405, 3, 27); // نمونه
-    }
-
-    private async Task RenderCharts()
-    {
-        if (CurrentReport == null) return;
-
-        var chartModule = await JS.InvokeAsync<IJSObjectReference>("import", "./dashboard.js");
-
-        // چارت دونات
-        await chartModule.InvokeVoidAsync("renderDonutChart", 
-            CurrentReport.TotalInsuranceSales, 
-            CurrentReport.TotalNonInsuranceSales);
-
-        // چارت ستونی
-        await chartModule.InvokeVoidAsync("renderBarChart",
-            new[] { CurrentReport.TotalOrganPart, CurrentReport.TotalSickPart, CurrentReport.TotalPharmacyServiceFee },
-            new[] { "سهم سازمان", "سهم بیمار", "تعرفه خدمات" });
     }
 }
